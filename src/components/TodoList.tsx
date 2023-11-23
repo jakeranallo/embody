@@ -3,6 +3,12 @@ import { useTrail, animated } from "react-spring";
 import { Input, Button, Container, Box, Flex } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
+import { Tabs, rem } from "@mantine/core";
+import {
+  IconSunset2,
+  IconCalendar,
+  IconSettings,
+} from "@tabler/icons-react";
 
 interface TodoItem {
   id: number;
@@ -14,10 +20,15 @@ interface TodoItem {
 const TodoList: React.FC = () => {
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState<string>("");
-  const [newItemPoints, setNewItemPoints] = useState<string>("0");
+  const [newItemPoints, setNewItemPoints] = useState<string>("");
   const [pointsGoal, setPointsGoal] = useState<number>(100);
   const [isAddItemFormVisible, setIsAddItemFormVisible] =
     useState<boolean>(false);
+  const [settingsPointsGoal, setSettingsPointsGoal] =
+    useState<number>(pointsGoal);
+  const [isPointsGoalChanged, setIsPointsGoalChanged] =
+    useState<boolean>(false);
+  const iconStyle = { width: rem(24), height: rem(24) };
 
   const addTodoItem = () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
@@ -68,54 +79,116 @@ const TodoList: React.FC = () => {
     from: { opacity: 0, transform: "translate3d(50px,0,0)" },
   });
 
+  const handlePointsGoalChange = (value: string) => {
+    const newPointsGoal = parseInt(value);
+    setSettingsPointsGoal(newPointsGoal);
+    setIsPointsGoalChanged(newPointsGoal !== pointsGoal);
+  };
+
+  const submitPointsGoal = () => {
+    setPointsGoal(settingsPointsGoal);
+    setIsPointsGoalChanged(false);
+  };
+
+  const isAddButtonDisabled =
+    newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints));
+
   return (
     <Container>
-      <ScoreDisplay
-        name="YourName"
-        embodiment="Superhero"
-        totalScore={calculateScore()}
-        pointsGoal={pointsGoal}
-      />
-      <ul>
-        {listTrail.map((style, index) => (
-          <animated.li key={todoList[index].id} style={style}>
-            <CustomCheckbox
-              label={`${todoList[index].label} (${todoList[index].points} points)`}
-              checked={todoList[index].checked}
-              onChange={() => toggleTodoItem(todoList[index].id)}
+      <Tabs defaultValue="today">
+        <Tabs.List>
+          <Tabs.Tab
+            value="today"
+            leftSection={<IconSunset2 style={iconStyle} />}
+          >
+            Today
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="calendar"
+            leftSection={<IconCalendar style={iconStyle} />}
+          >
+            Calendar
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="settings"
+            leftSection={<IconSettings style={iconStyle} />}
+          >
+            Settings
+          </Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="today">
+          <Container>
+            <ScoreDisplay
+              name="YourName"
+              embodiment="Superhero"
+              totalScore={calculateScore()}
+              pointsGoal={pointsGoal}
             />
-            <Button onClick={() => deleteTodoItem(todoList[index].id)}>
-              Delete
+            <ul>
+              {listTrail.map((style, index) => (
+                <animated.li key={todoList[index].id} style={style}>
+                  <CustomCheckbox
+                    label={`${todoList[index].label} (${todoList[index].points} points)`}
+                    checked={todoList[index].checked}
+                    onChange={() => toggleTodoItem(todoList[index].id)}
+                  />
+                  <Button onClick={() => deleteTodoItem(todoList[index].id)}>
+                    Delete
+                  </Button>
+                </animated.li>
+              ))}
+            </ul>
+            <Button
+              onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}
+            >
+              {isAddItemFormVisible ? "Collapse Form" : "Add Item"}
             </Button>
-          </animated.li>
-        ))}
-      </ul>
-      <Button onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}>
-        {isAddItemFormVisible ? "Collapse Form" : "Add Item"}
-      </Button>
-      {isAddItemFormVisible && (
-        <Flex>
-          <Input
-            placeholder="New Item"
-            value={newItemLabel}
-            onChange={(e) => setNewItemLabel(e.target.value)}
-          />
-          <Input
-            placeholder="Points"
-            value={newItemPoints}
-            onChange={(e) => handlePointsChange(e.target.value)}
-          />
-          <Button onClick={addTodoItem}>Add</Button>
-        </Flex>
-      )}
-      <Box>
-        <Input
-          type="number"
-          placeholder="Points Goal"
-          value={pointsGoal.toString()}
-          onChange={(e) => setPointsGoal(parseInt(e.target.value))}
-        />
-        </Box>
+            {isAddItemFormVisible && (
+              <Flex>
+                <Input.Wrapper label="New Item">
+                  <Input
+                    placeholder="New Item"
+                    value={newItemLabel}
+                    onChange={(e) => setNewItemLabel(e.target.value)}
+                  />
+                </Input.Wrapper>
+                <Input.Wrapper label="Points">
+                  <Input
+                    placeholder="Points"
+                    value={newItemPoints}
+                    onChange={(e) => handlePointsChange(e.target.value)}
+                  />
+                </Input.Wrapper>
+                <Button onClick={addTodoItem} disabled={isAddButtonDisabled}>
+                  Add
+                </Button>
+              </Flex>
+            )}
+          </Container>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="calendar">Calendar tab content</Tabs.Panel>
+
+        <Tabs.Panel value="settings">
+          <Container>
+            <Input.Wrapper label="Points Goal">
+              <Input
+                type="number"
+                placeholder="Points Goal"
+                value={settingsPointsGoal.toString()}
+                onChange={(e) => handlePointsGoalChange(e.target.value)}
+              />
+            </Input.Wrapper>
+            <Button
+              onClick={submitPointsGoal}
+              disabled={!isPointsGoalChanged}
+            >
+              Submit
+            </Button>
+          </Container>
+        </Tabs.Panel>
+      </Tabs>
     </Container>
   );
 };

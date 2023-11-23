@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTrail, animated } from "react-spring";
-import { Checkbox, Input, Button, Container, Grid } from "@mantine/core";
+import { Input, Button, Container, Box, Flex } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 
@@ -94,7 +94,7 @@ const TodoList: React.FC = () => {
         {isAddItemFormVisible ? "Collapse Form" : "Add Item"}
       </Button>
       {isAddItemFormVisible && (
-        <Grid>
+        <Flex>
           <Input
             placeholder="New Item"
             value={newItemLabel}
@@ -106,16 +106,16 @@ const TodoList: React.FC = () => {
             onChange={(e) => handlePointsChange(e.target.value)}
           />
           <Button onClick={addTodoItem}>Add</Button>
-        </Grid>
+        </Flex>
       )}
-      <Grid>
+      <Box>
         <Input
           type="number"
           placeholder="Points Goal"
           value={pointsGoal.toString()}
           onChange={(e) => setPointsGoal(parseInt(e.target.value))}
         />
-      </Grid>
+        </Box>
     </Container>
   );
 };

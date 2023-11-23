@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
+import { useSpring, useTrail, animated } from 'react-spring';
+import CustomCheckbox from './CustomCheckbox';
+import ScoreDisplay from './ScoreDisplay';
 
 interface TodoItem {
   id: number;
@@ -7,51 +10,15 @@ interface TodoItem {
   checked: boolean;
 }
 
-interface ScoreDisplayProps {
-  name: string;
-  embodiment: string;
-  totalScore: number;
-  pointsGoal: number;
-}
-
-const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
-  name,
-  embodiment,
-  totalScore,
-  pointsGoal,
-}) => {
-  const today = new Date();
-  const dayOfWeek = today.toLocaleDateString("en-US", { weekday: "long" });
-
-  const isGoalReached = totalScore >= pointsGoal;
-  const textColor = isGoalReached ? "green" : totalScore < 0 ? "red" : "black";
-
-  return (
-    <div>
-      <h1>Hello {name}</h1>
-      <h2>
-        Your {dayOfWeek} as a {embodiment}
-      </h2>
-      <div style={{ color: textColor }}>
-        <strong>Total Score:</strong> {totalScore} points
-      </div>
-      <div>
-        <strong>Points Goal:</strong> {pointsGoal} points
-      </div>
-    </div>
-  );
-};
-
 const TodoList: React.FC = () => {
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
-  const [newItemLabel, setNewItemLabel] = useState<string>("");
-  const [newItemPoints, setNewItemPoints] = useState<string>("0");
+  const [newItemLabel, setNewItemLabel] = useState<string>('');
+  const [newItemPoints, setNewItemPoints] = useState<string>('0');
   const [pointsGoal, setPointsGoal] = useState<number>(100); // Default points goal
-  const [isAddItemFormVisible, setIsAddItemFormVisible] =
-    useState<boolean>(false);
+  const [isAddItemFormVisible, setIsAddItemFormVisible] = useState<boolean>(false);
 
   const addTodoItem = () => {
-    if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
+    if (newItemLabel.trim() === '' || isNaN(parseInt(newItemPoints))) return;
 
     const newTodoItem: TodoItem = {
       id: Date.now(),
@@ -61,13 +28,13 @@ const TodoList: React.FC = () => {
     };
 
     setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
-    setNewItemLabel("");
-    setNewItemPoints("0");
+    setNewItemLabel('');
+    setNewItemPoints('0');
     setIsAddItemFormVisible(false);
   };
 
   const handlePointsChange = (value: string) => {
-    const sanitizedValue = value.replace(/[^0-9-]/g, "");
+    const sanitizedValue = value.replace(/[^0-9-]/g, '');
     setNewItemPoints(sanitizedValue);
   };
 
@@ -80,45 +47,44 @@ const TodoList: React.FC = () => {
   };
 
   const deleteTodoItem = (id: number) => {
-    setTodoList((prevTodoList) =>
-      prevTodoList.filter((item) => item.id !== id)
-    );
+    setTodoList((prevTodoList) => prevTodoList.filter((item) => item.id !== id));
   };
 
   const calculateScore = () => {
-    return todoList.reduce(
-      (acc, item) => (item.checked ? acc + item.points : acc),
-      0
-    );
+    return todoList.reduce((acc, item) => (item.checked ? acc + item.points : acc), 0);
   };
+
+  // React Spring animation configuration for the entire list
+  const listTrail = useTrail(todoList.length, {
+    opacity: 1,
+    transform: 'translate3d(0,0,0)',
+    from: { opacity: 0, transform: 'translate3d(50px,0,0)' },
+  });
 
   return (
     <div>
-      <div>
-        <ScoreDisplay
-          name="YourName"
-          embodiment="Superhero"
-          totalScore={calculateScore()}
-          pointsGoal={pointsGoal}
-        />
-      </div>
+      <ScoreDisplay
+        name="YourName"
+        embodiment="Superhero"
+        totalScore={calculateScore()}
+        pointsGoal={pointsGoal}
+      />
       <ul>
-        {todoList.map((item) => (
-          <li key={item.id}>
-            <input
-              type="checkbox"
-              checked={item.checked}
-              onChange={() => toggleTodoItem(item.id)}
+        {listTrail.map((style, index) => (
+          <animated.li key={todoList[index].id} style={style}>
+            <CustomCheckbox
+              label={`${todoList[index].label} (${todoList[index].points} points)`}
+              checked={todoList[index].checked}
+              onChange={() => toggleTodoItem(todoList[index].id)}
             />
             <span>
-              {item.label} ({item.points} points)
-              <button onClick={() => deleteTodoItem(item.id)}>Delete</button>
+              <button onClick={() => deleteTodoItem(todoList[index].id)}>Delete</button>
             </span>
-          </li>
+          </animated.li>
         ))}
       </ul>
       <button onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}>
-        {isAddItemFormVisible ? "Collapse Form" : "Add Item"}
+        {isAddItemFormVisible ? 'Collapse Form' : 'Add Item'}
       </button>
       {isAddItemFormVisible && (
         <div>

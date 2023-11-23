@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { useTrail, animated } from 'react-spring';
-import { Checkbox, Input, Button, Container, Grid } from '@mantine/core';
-import ScoreDisplay from './ScoreDisplay';
+import React, { useState } from "react";
+import { useTrail, animated } from "react-spring";
+import { Checkbox, Input, Button, Container, Grid } from "@mantine/core";
+import ScoreDisplay from "./ScoreDisplay";
+import CustomCheckbox from "./CustomCheckbox";
 
 interface TodoItem {
   id: number;
@@ -12,13 +13,14 @@ interface TodoItem {
 
 const TodoList: React.FC = () => {
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
-  const [newItemLabel, setNewItemLabel] = useState<string>('');
-  const [newItemPoints, setNewItemPoints] = useState<string>('0');
+  const [newItemLabel, setNewItemLabel] = useState<string>("");
+  const [newItemPoints, setNewItemPoints] = useState<string>("0");
   const [pointsGoal, setPointsGoal] = useState<number>(100);
-  const [isAddItemFormVisible, setIsAddItemFormVisible] = useState<boolean>(false);
+  const [isAddItemFormVisible, setIsAddItemFormVisible] =
+    useState<boolean>(false);
 
   const addTodoItem = () => {
-    if (newItemLabel.trim() === '' || isNaN(parseInt(newItemPoints))) return;
+    if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
 
     const newTodoItem: TodoItem = {
       id: Date.now(),
@@ -28,13 +30,13 @@ const TodoList: React.FC = () => {
     };
 
     setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
-    setNewItemLabel('');
-    setNewItemPoints('0');
+    setNewItemLabel("");
+    setNewItemPoints("0");
     setIsAddItemFormVisible(false);
   };
 
   const handlePointsChange = (value: string) => {
-    const sanitizedValue = value.replace(/[^0-9-]/g, '');
+    const sanitizedValue = value.replace(/[^0-9-]/g, "");
     setNewItemPoints(sanitizedValue);
   };
 
@@ -47,18 +49,23 @@ const TodoList: React.FC = () => {
   };
 
   const deleteTodoItem = (id: number) => {
-    setTodoList((prevTodoList) => prevTodoList.filter((item) => item.id !== id));
+    setTodoList((prevTodoList) =>
+      prevTodoList.filter((item) => item.id !== id)
+    );
   };
 
   const calculateScore = () => {
-    return todoList.reduce((acc, item) => (item.checked ? acc + item.points : acc), 0);
+    return todoList.reduce(
+      (acc, item) => (item.checked ? acc + item.points : acc),
+      0
+    );
   };
 
   // React Spring animation configuration for the entire list
   const listTrail = useTrail(todoList.length, {
     opacity: 1,
-    transform: 'translate3d(0,0,0)',
-    from: { opacity: 0, transform: 'translate3d(50px,0,0)' },
+    transform: "translate3d(0,0,0)",
+    from: { opacity: 0, transform: "translate3d(50px,0,0)" },
   });
 
   return (
@@ -72,17 +79,19 @@ const TodoList: React.FC = () => {
       <ul>
         {listTrail.map((style, index) => (
           <animated.li key={todoList[index].id} style={style}>
-            <Checkbox
+            <CustomCheckbox
               label={`${todoList[index].label} (${todoList[index].points} points)`}
               checked={todoList[index].checked}
               onChange={() => toggleTodoItem(todoList[index].id)}
             />
-            <Button onClick={() => deleteTodoItem(todoList[index].id)}>Delete</Button>
+            <Button onClick={() => deleteTodoItem(todoList[index].id)}>
+              Delete
+            </Button>
           </animated.li>
         ))}
       </ul>
       <Button onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}>
-        {isAddItemFormVisible ? 'Collapse Form' : 'Add Item'}
+        {isAddItemFormVisible ? "Collapse Form" : "Add Item"}
       </Button>
       {isAddItemFormVisible && (
         <Grid>

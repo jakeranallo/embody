@@ -1,8 +1,10 @@
 // CustomCheckbox.tsx
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { useSpring, animated } from 'react-spring';
-import { Particles } from 'react-tsparticles';
+import React, { useState, useEffect, useCallback } from "react";
+import styled from "styled-components";
+import { useSpring, animated } from "react-spring";
+import Particles from "react-particles";
+import type { Container, Engine } from "tsparticles-engine";
+import { loadConfettiPreset } from "tsparticles-preset-confetti";
 
 interface CustomCheckboxProps {
   label: string;
@@ -20,7 +22,7 @@ const CheckboxContainer = styled.label`
   cursor: pointer;
 `;
 
-const HiddenCheckbox = styled.input.attrs({ type: 'checkbox' })`
+const HiddenCheckbox = styled.input.attrs({ type: "checkbox" })`
   position: absolute;
   opacity: 0;
   cursor: pointer;
@@ -30,7 +32,7 @@ const StyledCheckbox = styled(animated.div)<StyledCheckboxProps>`
   display: inline-block;
   width: 20px;
   height: 20px;
-  background: ${props => (props.checked ? '#007BFF' : '#FFF')};
+  background: ${(props) => (props.checked ? "#007BFF" : "#FFF")};
   border: 1px solid #ccc;
   border-radius: 3px;
   transition: background 0.3s;
@@ -47,32 +49,35 @@ const ParticleContainer = styled.div`
 `;
 
 const particleOptions = {
-  particles: {
-    number: {
-      value: 50,
-    },
-    size: {
-      value: 3,
-    },
-    color: {
-      value: '#00FF00', // Green color
-    },
-  },
-  interactivity: {
-    events: {
-      onhover: {
-        enable: true,
-        mode: 'repulse',
-      },
-    },
-  },
+    preset: "confetti",
 };
 
-const CustomCheckbox: React.FC<CustomCheckboxProps> = ({ label, checked, onChange }) => {
+const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
+  label,
+  checked,
+  onChange,
+}) => {
   const [showParticles, setShowParticles] = useState(false);
 
+  const particlesInit = useCallback(async (engine: Engine) => {
+    console.log(engine);
+
+    // you can initialize the tsParticles instance (engine) here, adding custom shapes or presets
+    // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
+    // starting from v2 you can add only the features you need reducing the bundle size
+    //await loadFull(engine);
+    await loadConfettiPreset(engine);
+  }, []);
+
+  const particlesLoaded = useCallback(
+    async (container: Container | undefined) => {
+      console.log(container);
+    },
+    []
+  );
+
   const springProps = useSpring({
-    background: checked ? '#007BFF' : '#FFF',
+    background: checked ? "#007BFF" : "#FFF",
     onStart: () => {
       if (checked) {
         setShowParticles(true);
@@ -89,15 +94,6 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({ label, checked, onChang
     onChange(!checked);
   };
 
-  // Initialize particles when showParticles changes
-  useEffect(() => {
-    if (showParticles) {
-      // Ensure proper initialization and updating of particles
-      const tsParticles = window.tsParticles;
-      tsParticles.init();
-    }
-  }, [showParticles]);
-
   return (
     <CheckboxContainer>
       <HiddenCheckbox checked={checked} onChange={handleCheckboxChange} />
@@ -105,7 +101,11 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({ label, checked, onChang
       <CheckboxLabel>{label}</CheckboxLabel>
       {showParticles && (
         <ParticleContainer>
-          <Particles options={particleOptions} />
+          <Particles
+            options={particleOptions}
+            init={particlesInit}
+            loaded={particlesLoaded}
+          />
         </ParticleContainer>
       )}
     </CheckboxContainer>

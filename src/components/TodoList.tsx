@@ -1,15 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTrail, animated } from "react-spring";
 import { Input, Button, Container, Box, Flex } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 import { Tabs, rem } from "@mantine/core";
-import Calendar from 'react-calendar'
-import {
-  IconSunset2,
-  IconCalendar,
-  IconSettings,
-} from "@tabler/icons-react";
+import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 
 interface TodoItem {
   id: number;
@@ -18,7 +15,16 @@ interface TodoItem {
   checked: boolean;
 }
 
+interface DayData {
+  todos: TodoItem[];
+  score: number;
+}
+
 const TodoList: React.FC = () => {
+  const [calendar, setCalendar] = useState<Record<string, DayData>>({});
+  const [currentDay, setCurrentDay] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState<string>("");
   const [newItemPoints, setNewItemPoints] = useState<string>("");
@@ -30,6 +36,16 @@ const TodoList: React.FC = () => {
   const [isPointsGoalChanged, setIsPointsGoalChanged] =
     useState<boolean>(false);
   const iconStyle = { width: rem(24), height: rem(24) };
+  const listTrail = useTrail(todoList.length, {
+    opacity: 1,
+    transform: "translate3d(0,0,0)",
+    from: { opacity: 0, transform: "translate3d(50px,0,0)" },
+  });
+
+  useEffect(() => {
+    // Update the todo list when the selected day changes
+    setTodoList(calendar[currentDay]?.todos || []);
+  }, [calendar, currentDay]);
 
   const addTodoItem = () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
@@ -43,8 +59,22 @@ const TodoList: React.FC = () => {
 
     setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
     setNewItemLabel("");
-    setNewItemPoints("0");
+    setNewItemPoints("");
     setIsAddItemFormVisible(false);
+
+    // Update the calendar with the new todo item
+    const updatedCalendar = { ...calendar };
+    if (!updatedCalendar[currentDay]) {
+      updatedCalendar[currentDay] = { todos: [], score: 0 };
+    }
+    updatedCalendar[currentDay].todos.push(newTodoItem);
+
+    // Update the score
+    updatedCalendar[currentDay].score += newTodoItem.checked
+      ? newTodoItem.points
+      : 0;
+
+    setCalendar(updatedCalendar);
   };
 
   const handlePointsChange = (value: string) => {
@@ -58,12 +88,48 @@ const TodoList: React.FC = () => {
         item.id === id ? { ...item, checked: !item.checked } : item
       )
     );
+
+    // Update the calendar with the new checked status
+    const updatedCalendar = { ...calendar };
+    if (!updatedCalendar[currentDay]) {
+      updatedCalendar[currentDay] = { todos: [], score: 0 };
+    }
+    const updatedTodo = updatedCalendar[currentDay].todos.find(
+      (todo) => todo.id === id
+    );
+    if (updatedTodo) {
+      updatedTodo.checked = !updatedTodo.checked;
+      updatedCalendar[currentDay].score += updatedTodo.checked
+        ? updatedTodo.points
+        : -updatedTodo.points;
+    }
+
+    setCalendar(updatedCalendar);
   };
 
   const deleteTodoItem = (id: number) => {
     setTodoList((prevTodoList) =>
       prevTodoList.filter((item) => item.id !== id)
     );
+
+    // Update the calendar by removing the todo item
+    const updatedCalendar = { ...calendar };
+    if (!updatedCalendar[currentDay]) {
+      updatedCalendar[currentDay] = { todos: [], score: 0 };
+    }
+    const deletedTodo = updatedCalendar[currentDay].todos.find(
+      (todo) => todo.id === id
+    );
+    if (deletedTodo) {
+      updatedCalendar[currentDay].score -= deletedTodo.checked
+        ? deletedTodo.points
+        : 0;
+      updatedCalendar[currentDay].todos = updatedCalendar[
+        currentDay
+      ].todos.filter((todo) => todo.id !== id);
+    }
+
+    setCalendar(updatedCalendar);
   };
 
   const calculateScore = () => {
@@ -73,17 +139,9 @@ const TodoList: React.FC = () => {
     );
   };
 
-  // React Spring animation configuration for the entire list
-  const listTrail = useTrail(todoList.length, {
-    opacity: 1,
-    transform: "translate3d(0,0,0)",
-    from: { opacity: 0, transform: "translate3d(50px,0,0)" },
-  });
-
-  const handlePointsGoalChange = (value: string) => {
-    const newPointsGoal = parseInt(value);
-    setSettingsPointsGoal(newPointsGoal);
-    setIsPointsGoalChanged(newPointsGoal !== pointsGoal);
+  const handleDayChange = (value: any) => {
+    const selectedDay = new Date(value).toLocaleDateString("en-US");
+    setCurrentDay(selectedDay);
   };
 
   const submitPointsGoal = () => {
@@ -91,8 +149,13 @@ const TodoList: React.FC = () => {
     setIsPointsGoalChanged(false);
   };
 
+  const handlePointsGoalChange = (value: string) => {
+    setSettingsPointsGoal(parseInt(value));
+    setIsPointsGoalChanged(true);
+  };
+
   const isAddButtonDisabled =
-    newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints));
+    newItemLabel.trim() === "" || newItemPoints.trim() === "";
 
   return (
     <Container>
@@ -125,6 +188,7 @@ const TodoList: React.FC = () => {
               embodiment="Superhero"
               totalScore={calculateScore()}
               pointsGoal={pointsGoal}
+              header
             />
             <ul>
               {listTrail.map((style, index) => (
@@ -149,13 +213,14 @@ const TodoList: React.FC = () => {
               <Flex>
                 <Input.Wrapper label="New Item">
                   <Input
-                    placeholder="New Item"
+                    placeholder="Todo Title"
                     value={newItemLabel}
                     onChange={(e) => setNewItemLabel(e.target.value)}
                   />
                 </Input.Wrapper>
                 <Input.Wrapper label="Points">
                   <Input
+                    type="number"
                     placeholder="Points"
                     value={newItemPoints}
                     onChange={(e) => handlePointsChange(e.target.value)}
@@ -169,22 +234,39 @@ const TodoList: React.FC = () => {
           </Container>
         </Tabs.Panel>
 
-        <Tabs.Panel value="calendar"><Calendar/></Tabs.Panel>
+        <Tabs.Panel value="calendar">
+          <Container>
+            <Calendar onChange={handleDayChange} value={new Date(currentDay)} />
+            <ul>
+              {calendar[currentDay]?.todos.map((item) => (
+                <li key={item.id}>
+                  <ScoreDisplay
+                    name="YourName"
+                    embodiment="Superhero"
+                    totalScore={calendar[currentDay]?.score || 0}
+                    pointsGoal={pointsGoal}
+                  />
+                  <CustomCheckbox
+                    label={`${item.label} (${item.points} points)`}
+                    checked={item.checked}
+                    onChange={() => toggleTodoItem(item.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </Tabs.Panel>
 
         <Tabs.Panel value="settings">
           <Container>
             <Input.Wrapper label="Points Goal">
               <Input
                 type="number"
-                placeholder="Points Goal"
                 value={settingsPointsGoal.toString()}
                 onChange={(e) => handlePointsGoalChange(e.target.value)}
               />
             </Input.Wrapper>
-            <Button
-              onClick={submitPointsGoal}
-              disabled={!isPointsGoalChanged}
-            >
+            <Button onClick={submitPointsGoal} disabled={!isPointsGoalChanged}>
               Submit
             </Button>
           </Container>

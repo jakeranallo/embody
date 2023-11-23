@@ -4,6 +4,7 @@ import { Input, Button, Container, Box, Flex } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 import { Tabs, rem } from "@mantine/core";
+import Calendar from 'react-calendar'
 import {
   IconSunset2,
   IconCalendar,
@@ -168,7 +169,7 @@ const TodoList: React.FC = () => {
           </Container>
         </Tabs.Panel>
 
-        <Tabs.Panel value="calendar">Calendar tab content</Tabs.Panel>
+        <Tabs.Panel value="calendar"><Calendar/></Tabs.Panel>
 
         <Tabs.Panel value="settings">
           <Container>

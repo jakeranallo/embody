@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useSpring, useTrail, animated } from 'react-spring';
-import CustomCheckbox from './CustomCheckbox';
+import { useTrail, animated } from 'react-spring';
+import { Checkbox, Input, Button, Container, Grid } from '@mantine/core';
 import ScoreDisplay from './ScoreDisplay';
 
 interface TodoItem {
@@ -14,7 +14,7 @@ const TodoList: React.FC = () => {
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState<string>('');
   const [newItemPoints, setNewItemPoints] = useState<string>('0');
-  const [pointsGoal, setPointsGoal] = useState<number>(100); // Default points goal
+  const [pointsGoal, setPointsGoal] = useState<number>(100);
   const [isAddItemFormVisible, setIsAddItemFormVisible] = useState<boolean>(false);
 
   const addTodoItem = () => {
@@ -62,7 +62,7 @@ const TodoList: React.FC = () => {
   });
 
   return (
-    <div>
+    <Container>
       <ScoreDisplay
         name="YourName"
         embodiment="Superhero"
@@ -72,52 +72,42 @@ const TodoList: React.FC = () => {
       <ul>
         {listTrail.map((style, index) => (
           <animated.li key={todoList[index].id} style={style}>
-            <CustomCheckbox
+            <Checkbox
               label={`${todoList[index].label} (${todoList[index].points} points)`}
               checked={todoList[index].checked}
               onChange={() => toggleTodoItem(todoList[index].id)}
             />
-            <span>
-              <button onClick={() => deleteTodoItem(todoList[index].id)}>Delete</button>
-            </span>
+            <Button onClick={() => deleteTodoItem(todoList[index].id)}>Delete</Button>
           </animated.li>
         ))}
       </ul>
-      <button onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}>
+      <Button onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}>
         {isAddItemFormVisible ? 'Collapse Form' : 'Add Item'}
-      </button>
+      </Button>
       {isAddItemFormVisible && (
-        <div>
-          <label>
-            New Item:
-            <input
-              type="text"
-              value={newItemLabel}
-              onChange={(e) => setNewItemLabel(e.target.value)}
-            />
-          </label>
-          <label>
-            Points:
-            <input
-              type="text"
-              value={newItemPoints}
-              onChange={(e) => handlePointsChange(e.target.value)}
-            />
-          </label>
-          <button onClick={addTodoItem}>Add</button>
-        </div>
-      )}
-      <div>
-        <label>
-          Points Goal:
-          <input
-            type="number"
-            value={pointsGoal}
-            onChange={(e) => setPointsGoal(parseInt(e.target.value))}
+        <Grid>
+          <Input
+            placeholder="New Item"
+            value={newItemLabel}
+            onChange={(e) => setNewItemLabel(e.target.value)}
           />
-        </label>
-      </div>
-    </div>
+          <Input
+            placeholder="Points"
+            value={newItemPoints}
+            onChange={(e) => handlePointsChange(e.target.value)}
+          />
+          <Button onClick={addTodoItem}>Add</Button>
+        </Grid>
+      )}
+      <Grid>
+        <Input
+          type="number"
+          placeholder="Points Goal"
+          value={pointsGoal.toString()}
+          onChange={(e) => setPointsGoal(parseInt(e.target.value))}
+        />
+      </Grid>
+    </Container>
   );
 };
 

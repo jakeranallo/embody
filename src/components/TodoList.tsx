@@ -7,7 +7,10 @@ import { Tabs, rem } from "@mantine/core";
 import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import { auth, db } from '../../firebase'
+import { User } from "../types";
+import { signOut } from "firebase/auth";
+import { auth, database } from "../firebase";
+import { getDatabase, ref, get, set } from "firebase/database";
 
 interface TodoItem {
   id: number;
@@ -21,7 +24,9 @@ interface DayData {
   score: number;
 }
 
-const TodoList: React.FC = () => {
+const TodoList: React.FC<{ user: User }> = ({ user }) => {
+  const [userData, setUserData] = useState<User | null>(null);
+  const [newEmbodyGoal, setNewEmbodyGoal] = useState<string>('');
   const [calendar, setCalendar] = useState<Record<string, DayData>>({});
   const [currentDay, setCurrentDay] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -34,7 +39,7 @@ const TodoList: React.FC = () => {
     useState<boolean>(false);
   const [settingsPointsGoal, setSettingsPointsGoal] =
     useState<number>(pointsGoal);
-  const [isPointsGoalChanged, setIsPointsGoalChanged] =
+  const [isSettingsChanged, setSettingsChanged] =
     useState<boolean>(false);
   const iconStyle = { width: rem(24), height: rem(24) };
   const listTrail = useTrail(todoList.length, {
@@ -47,6 +52,53 @@ const TodoList: React.FC = () => {
     // Update the todo list when the selected day changes
     setTodoList(calendar[currentDay]?.todos || []);
   }, [calendar, currentDay]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const database = getDatabase();
+        const userRef = ref(database, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+        const userDataFromDatabase = snapshot.val();
+
+        if (userDataFromDatabase) {
+          setUserData(userDataFromDatabase);
+        }
+      } catch (error: any) {
+        console.error("Error fetching user data:", error.message);
+      }
+    };
+
+    fetchData();
+  }, [user.uid]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth); // Assuming you have the reference to the authentication instance
+    } catch (error: any) {
+      console.error("Error signing out:", error.message);
+    }
+  };
+
+  const handleEmbodyGoalUpdate = async (newEmbodyGoal: string) => {
+    try {
+      const userRef = ref(database, `users/${user.uid}/embodyGoal`);
+      await set(userRef, newEmbodyGoal);
+
+      // Fetch the updated user data and update the local state
+      const updatedSnapshot = await get(ref(database, `users/${user.uid}`));
+      const updatedUserData = updatedSnapshot.val();
+
+      if (updatedUserData) {
+        setUserData((prevUser) => ({
+          ...prevUser!,
+          ...updatedUserData,
+        }));
+      }
+    } catch (error:any) {
+      console.error('Error updating embodyGoal:', error.message);
+    }
+  };
 
   const addTodoItem = () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
@@ -145,14 +197,20 @@ const TodoList: React.FC = () => {
     setCurrentDay(selectedDay);
   };
 
-  const submitPointsGoal = () => {
+  const submitSettings = () => {
     setPointsGoal(settingsPointsGoal);
-    setIsPointsGoalChanged(false);
+    handleEmbodyGoalUpdate(newEmbodyGoal)
+    setSettingsChanged(false);
   };
 
   const handlePointsGoalChange = (value: string) => {
-    setSettingsPointsGoal(parseInt(value));
-    setIsPointsGoalChanged(true);
+    setPointsGoal(parseInt(value));
+    setSettingsChanged(true);
+  };
+
+  const handleEmbodyChange = (value: string) => {
+    setNewEmbodyGoal(value);
+    setSettingsChanged(true);
   };
 
   const isAddButtonDisabled =
@@ -185,8 +243,8 @@ const TodoList: React.FC = () => {
         <Tabs.Panel value="today">
           <Container>
             <ScoreDisplay
-              name="YourName"
-              embodiment="Superhero"
+              name={userData?.name ?? ""}
+              embodiment={userData?.embodyGoal ?? ""}
               totalScore={calculateScore()}
               pointsGoal={pointsGoal}
               header
@@ -267,9 +325,18 @@ const TodoList: React.FC = () => {
                 onChange={(e) => handlePointsGoalChange(e.target.value)}
               />
             </Input.Wrapper>
-            <Button onClick={submitPointsGoal} disabled={!isPointsGoalChanged}>
+            <Input.Wrapper label="Embody Goal">
+              <Input
+                type="text"
+                id="newEmbodyGoal"
+                value={newEmbodyGoal}
+                onChange={(e) => handleEmbodyChange(e.target.value)}
+              />
+            </Input.Wrapper>
+            <Button onClick={submitSettings} disabled={!isSettingsChanged}>
               Submit
             </Button>
+            <button onClick={handleSignOut}>Sign Out</button>
           </Container>
         </Tabs.Panel>
       </Tabs>

@@ -7,6 +7,7 @@ import { Tabs, rem } from "@mantine/core";
 import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
+import { auth, db } from '../../firebase'
 
 interface TodoItem {
   id: number;

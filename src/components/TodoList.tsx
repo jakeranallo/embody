@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useTrail, animated } from "react-spring";
-import { Input, Button, Container, Box, Flex } from "@mantine/core";
+import {
+  Input,
+  Button,
+  Container,
+  Box,
+  Flex,
+  NavLinkCssVariables,
+} from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 import { Tabs, rem } from "@mantine/core";
@@ -10,10 +17,10 @@ import "react-calendar/dist/Calendar.css";
 import { User } from "../types";
 import { signOut } from "firebase/auth";
 import { auth, database } from "../firebase";
-import { getDatabase, ref, get, set } from "firebase/database";
+import { getDatabase, ref, get, set, push } from "firebase/database";
 
 interface TodoItem {
-  id: number;
+  id: string | null;
   label: string;
   points: number;
   checked: boolean;
@@ -26,7 +33,11 @@ interface DayData {
 
 const TodoList: React.FC<{ user: User }> = ({ user }) => {
   const [userData, setUserData] = useState<User | null>(null);
-  const [newEmbodyGoal, setNewEmbodyGoal] = useState<string>('');
+
+  const [newEmbodyGoal, setNewEmbodyGoal] = useState<string>("");
+  const [newPointsGoal, setNewPointsGoal] = useState<number>(0);
+  const [newName, setNewName] = useState<string>("");
+
   const [calendar, setCalendar] = useState<Record<string, DayData>>({});
   const [currentDay, setCurrentDay] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -34,15 +45,11 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
   const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const [newItemLabel, setNewItemLabel] = useState<string>("");
   const [newItemPoints, setNewItemPoints] = useState<string>("");
-  const [pointsGoal, setPointsGoal] = useState<number>(100);
   const [isAddItemFormVisible, setIsAddItemFormVisible] =
     useState<boolean>(false);
-  const [settingsPointsGoal, setSettingsPointsGoal] =
-    useState<number>(pointsGoal);
-  const [isSettingsChanged, setSettingsChanged] =
-    useState<boolean>(false);
+  const [isSettingsChanged, setSettingsChanged] = useState<boolean>(false);
   const iconStyle = { width: rem(24), height: rem(24) };
-  const listTrail = useTrail(todoList.length, {
+  const listTrail = useTrail(Object.keys(userData?.todos || {}).length, {
     opacity: 1,
     transform: "translate3d(0,0,0)",
     from: { opacity: 0, transform: "translate3d(50px,0,0)" },
@@ -63,6 +70,7 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
 
         if (userDataFromDatabase) {
           setUserData(userDataFromDatabase);
+          console.log(userDataFromDatabase);
         }
       } catch (error: any) {
         console.error("Error fetching user data:", error.message);
@@ -72,18 +80,36 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     fetchData();
   }, [user.uid]);
 
+  if (!userData) {
+    // If user data is not available, render a loading state or handle it as needed
+    return <div>Loading...</div>;
+  }
+
   const handleSignOut = async () => {
     try {
-      await signOut(auth); // Assuming you have the reference to the authentication instance
+      await signOut(auth);
     } catch (error: any) {
       console.error("Error signing out:", error.message);
     }
   };
 
-  const handleEmbodyGoalUpdate = async (newEmbodyGoal: string) => {
+  const handleUserDataUpdate = async (
+    newEmbodyGoal: string,
+    newName: string,
+    newPointsGoal: number
+  ) => {
     try {
-      const userRef = ref(database, `users/${user.uid}/embodyGoal`);
-      await set(userRef, newEmbodyGoal);
+      // Update embodyGoal
+      const embodyGoalRef = ref(database, `users/${user.uid}/embodyGoal`);
+      await set(embodyGoalRef, newEmbodyGoal);
+
+      // Update name
+      const nameRef = ref(database, `users/${user.uid}/name`);
+      await set(nameRef, newName);
+
+      // Update pointsGoal
+      const pointsGoalRef = ref(database, `users/${user.uid}/pointsGoal`);
+      await set(pointsGoalRef, newPointsGoal);
 
       // Fetch the updated user data and update the local state
       const updatedSnapshot = await get(ref(database, `users/${user.uid}`));
@@ -94,40 +120,53 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
           ...prevUser!,
           ...updatedUserData,
         }));
+        setSettingsChanged(false);
       }
-    } catch (error:any) {
-      console.error('Error updating embodyGoal:', error.message);
+    } catch (error: any) {
+      console.error("Error updating user data:", error.message);
     }
   };
 
-  const addTodoItem = () => {
+  const addTodoItem = async () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
 
+    // Obtain a reference to the 'todos' node and push a new child
+    const todosRef = ref(database, `users/${user.uid}/todos`);
+    const newTodoRef = push(todosRef);
+
     const newTodoItem: TodoItem = {
-      id: Date.now(),
+      id: newTodoRef.key || null,
       label: newItemLabel,
       points: parseInt(newItemPoints),
       checked: false,
     };
 
-    setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
-    setNewItemLabel("");
-    setNewItemPoints("");
-    setIsAddItemFormVisible(false);
+    try {
+      // Set the new todo item with the generated key
+      await set(newTodoRef, newTodoItem);
 
-    // Update the calendar with the new todo item
-    const updatedCalendar = { ...calendar };
-    if (!updatedCalendar[currentDay]) {
-      updatedCalendar[currentDay] = { todos: [], score: 0 };
+      // Update the local state (todoList and calendar)
+      setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
+      setNewItemLabel("");
+      setNewItemPoints("");
+      setIsAddItemFormVisible(false);
+
+      // Update the calendar with the new todo item
+      const updatedCalendar = { ...calendar };
+      if (!updatedCalendar[currentDay]) {
+        updatedCalendar[currentDay] = { todos: [], score: 0 };
+      }
+      updatedCalendar[currentDay].todos.push(newTodoItem);
+
+      // Update the score
+      updatedCalendar[currentDay].score += newTodoItem.checked
+        ? newTodoItem.points
+        : 0;
+
+      setCalendar(updatedCalendar);
+    } catch (error: any) {
+      console.error("Error adding todo item to the database:", error.message);
     }
-    updatedCalendar[currentDay].todos.push(newTodoItem);
-
-    // Update the score
-    updatedCalendar[currentDay].score += newTodoItem.checked
-      ? newTodoItem.points
-      : 0;
-
-    setCalendar(updatedCalendar);
   };
 
   const handlePointsChange = (value: string) => {
@@ -135,7 +174,12 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     setNewItemPoints(sanitizedValue);
   };
 
-  const toggleTodoItem = (id: number) => {
+  const toggleTodoItem = async (id: string | null) => {
+    if (!id) {
+      // If id is null, do nothing
+      return;
+    }
+
     setTodoList((prevTodoList) =>
       prevTodoList.map((item) =>
         item.id === id ? { ...item, checked: !item.checked } : item
@@ -158,9 +202,32 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     }
 
     setCalendar(updatedCalendar);
+
+    try {
+      // Update the checked status in the database
+      const databaseRef = ref(
+        database,
+        `users/${user.uid}/todos/${id}/checked`
+      );
+      await set(databaseRef, !updatedTodo?.checked);
+    } catch (error: any) {
+      console.error(
+        "Error updating checked status in the database:",
+        error.message
+      );
+
+      // If there's an error with the database update, you may want to rollback
+      // the local state changes or handle the error in some other way.
+    }
   };
 
-  const deleteTodoItem = (id: number) => {
+  const deleteTodoItem = async (id: string | null) => {
+    if (!id) {
+      // If id is null, do nothing
+      return;
+    }
+
+    // Update the local state (todoList and calendar)
     setTodoList((prevTodoList) =>
       prevTodoList.filter((item) => item.id !== id)
     );
@@ -183,6 +250,17 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     }
 
     setCalendar(updatedCalendar);
+
+    try {
+      // Remove the item from the database
+      const databaseRef = ref(database, `users/${user.uid}/todos/${id}`);
+      await set(databaseRef, null);
+    } catch (error: any) {
+      console.error(
+        "Error deleting todo item from the database:",
+        error.message
+      );
+    }
   };
 
   const calculateScore = () => {
@@ -197,19 +275,18 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     setCurrentDay(selectedDay);
   };
 
-  const submitSettings = () => {
-    setPointsGoal(settingsPointsGoal);
-    handleEmbodyGoalUpdate(newEmbodyGoal)
-    setSettingsChanged(false);
-  };
-
   const handlePointsGoalChange = (value: string) => {
-    setPointsGoal(parseInt(value));
+    setNewPointsGoal(parseInt(value));
     setSettingsChanged(true);
   };
 
   const handleEmbodyChange = (value: string) => {
     setNewEmbodyGoal(value);
+    setSettingsChanged(true);
+  };
+
+  const handleNameChange = (value: string) => {
+    setNewName(value);
     setSettingsChanged(true);
   };
 
@@ -246,23 +323,35 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
               name={userData?.name ?? ""}
               embodiment={userData?.embodyGoal ?? ""}
               totalScore={calculateScore()}
-              pointsGoal={pointsGoal}
+              pointsGoal={userData?.pointsGoal ?? 0}
               header
             />
             <ul>
-              {listTrail.map((style, index) => (
-                <animated.li key={todoList[index].id} style={style}>
-                  <CustomCheckbox
-                    label={`${todoList[index].label} (${todoList[index].points} points)`}
-                    checked={todoList[index].checked}
-                    onChange={() => toggleTodoItem(todoList[index].id)}
-                  />
-                  <Button onClick={() => deleteTodoItem(todoList[index].id)}>
-                    Delete
-                  </Button>
-                </animated.li>
-              ))}
+              {Object.entries(userData?.todos || {}).map(
+                ([todoId, todo], index) => {
+                  if (!todo) {
+                    console.error(`Invalid todoId or todo for id: ${todoId}`);
+                    return null; // or handle the error in your preferred way
+                  }
+
+                  return (
+                    <animated.li key={todoId} style={listTrail[index]}>
+                      <CustomCheckbox
+                        label={`${todo.label ?? ""} (${
+                          todo.points ?? ""
+                        } points)`}
+                        checked={todo.checked ?? false}
+                        onChange={() => toggleTodoItem(todoId)}
+                      />
+                      <Button onClick={() => deleteTodoItem(todoId)}>
+                        Delete
+                      </Button>
+                    </animated.li>
+                  );
+                }
+              )}
             </ul>
+
             <Button
               onClick={() => setIsAddItemFormVisible(!isAddItemFormVisible)}
             >
@@ -303,7 +392,7 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
                     name="YourName"
                     embodiment="Superhero"
                     totalScore={calendar[currentDay]?.score || 0}
-                    pointsGoal={pointsGoal}
+                    pointsGoal={userData?.pointsGoal ?? 0}
                   />
                   <CustomCheckbox
                     label={`${item.label} (${item.points} points)`}
@@ -321,7 +410,7 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
             <Input.Wrapper label="Points Goal">
               <Input
                 type="number"
-                value={settingsPointsGoal.toString()}
+                value={newPointsGoal.toString()}
                 onChange={(e) => handlePointsGoalChange(e.target.value)}
               />
             </Input.Wrapper>
@@ -333,7 +422,20 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
                 onChange={(e) => handleEmbodyChange(e.target.value)}
               />
             </Input.Wrapper>
-            <Button onClick={submitSettings} disabled={!isSettingsChanged}>
+            <Input.Wrapper label="Name">
+              <Input
+                type="text"
+                id="newName"
+                value={newName}
+                onChange={(e) => handleNameChange(e.target.value)}
+              />
+            </Input.Wrapper>
+            <Button
+              onClick={(e) =>
+                handleUserDataUpdate(newEmbodyGoal, newName, newPointsGoal)
+              }
+              disabled={!isSettingsChanged}
+            >
               Submit
             </Button>
             <button onClick={handleSignOut}>Sign Out</button>

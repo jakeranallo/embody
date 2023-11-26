@@ -4,9 +4,7 @@ import {
   Input,
   Button,
   Container,
-  Box,
   Flex,
-  NavLinkCssVariables,
 } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
@@ -60,25 +58,26 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     setTodoList(calendar[currentDay]?.todos || []);
   }, [calendar, currentDay]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const database = getDatabase();
-        const userRef = ref(database, `users/${user.uid}`);
-        const snapshot = await get(userRef);
-        const userDataFromDatabase = snapshot.val();
+  const fetchData = async () => {
+    try {
+      const database = getDatabase();
+      const userRef = ref(database, `users/${user.uid}`);
+      const snapshot = await get(userRef);
+      const userDataFromDatabase = snapshot.val();
 
-        if (userDataFromDatabase) {
-          setUserData(userDataFromDatabase);
-          console.log(userDataFromDatabase);
-        }
-      } catch (error: any) {
-        console.error("Error fetching user data:", error.message);
+      if (userDataFromDatabase) {
+        setUserData(userDataFromDatabase);
+        console.log(userDataFromDatabase);
       }
-    };
+    } catch (error: any) {
+      console.error("Error fetching user data:", error.message);
+    }
+  };
 
+  useEffect(() => {
+    // Fetch user data when the selected day or user ID changes
     fetchData();
-  }, [user.uid]);
+  }, [user.uid, currentDay]); // Updated dependencies
 
   if (!userData) {
     // If user data is not available, render a loading state or handle it as needed
@@ -167,6 +166,7 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     } catch (error: any) {
       console.error("Error adding todo item to the database:", error.message);
     }
+    fetchData();
   };
 
   const handlePointsChange = (value: string) => {
@@ -219,9 +219,12 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
       // If there's an error with the database update, you may want to rollback
       // the local state changes or handle the error in some other way.
     }
+    fetchData();
   };
 
   const deleteTodoItem = async (id: string | null) => {
+    console.log("Delete todo item called with id:", id);
+
     if (!id) {
       // If id is null, do nothing
       return;
@@ -261,13 +264,21 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
         error.message
       );
     }
+
+    // After deleting todo, refetch user data
+    fetchData();
   };
 
   const calculateScore = () => {
-    return todoList.reduce(
-      (acc, item) => (item.checked ? acc + item.points : acc),
-      0
-    );
+    const todos = userData?.todos || {};
+  
+    if (typeof todos !== 'object' || todos === null) {
+      // Handle the case where todos is not an object
+      console.error("userData.todos is not an object:", todos);
+      return 0; // or handle it based on your specific use case
+    }
+  
+    return Object.values(todos).reduce((acc, item) => (item.checked ? acc + (item.points || 0) : acc), 0);
   };
 
   const handleDayChange = (value: any) => {

@@ -58,7 +58,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
       );
 
       setHistoricData(formattedHistoricData);
-      console.log(historicData);
+      console.log('fetched data:', historicData);
     } catch (error: any) {
       console.error("Error fetching historic data:", error.message);
     }
@@ -87,10 +87,10 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
       };
 
       await set(historicEntryRef, historicEntry);
-      //   await fetchData();
     } catch (error: any) {
       console.error("Error saving historic data:", error.message);
     }
+    fetchHistoricData();
   };
 
   // Save historic data when todoList or pointsGoal changes

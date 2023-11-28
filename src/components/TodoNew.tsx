@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { User } from "../types";
+import { User, TodoItem } from "../types";
 import { getDatabase, ref, get, set, push, update } from "firebase/database";
 import { Checkbox } from "@mantine/core";
 
 const TodoNew: React.FC<{ user: User }> = ({ user }) => {
   const [userData, setUserData] = useState<User | null>(null);
+  const [localTodos, setLocalTodos] = useState<{ [todoId: string]: TodoItem }>(
+    {}
+  );
 
   const fetchData = async () => {
     try {
@@ -15,6 +18,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
 
       if (userDataFromDatabase) {
         setUserData(userDataFromDatabase);
+        setLocalTodos(userDataFromDatabase.todos || {});
         console.log("User Data from Database:", userDataFromDatabase);
         return userDataFromDatabase; // Return the fetched data
       }
@@ -25,24 +29,31 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
 
   const handleCheckboxChange = async (todoId: string | any) => {
     try {
-      const database = getDatabase();
-
       console.log("Start of handleCheckboxChange");
-
+  
       if (!userData) {
         console.error("User data is undefined");
         return;
       }
-
+  
+      const updatedLocalTodos = {
+        ...localTodos,
+        [todoId]: {
+          ...localTodos[todoId],
+          checked: !localTodos[todoId]?.checked || false,
+        },
+      };
+  
+      setLocalTodos(updatedLocalTodos); // Update the local state immediately
+  
+      const database = getDatabase();
       const userRef = ref(database, `users/${user.uid}`);
-
+  
       if (!userData.todos || !userData.todos[todoId]) {
         console.error("Todo data is undefined");
         return;
       }
-
-      console.log("Before updating todos:", userData.todos);
-
+  
       const updatedTodos = {
         ...userData.todos,
         [todoId]: {
@@ -50,16 +61,20 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
           checked: !userData.todos[todoId]?.checked || false,
         },
       };
-
-      console.log("After updating todos:", updatedTodos);
-
+  
+      console.log("Before updating todos:", userData.todos);
+  
       await update(userRef, { todos: updatedTodos });
-
+  
+      console.log("After updating todos:", updatedTodos);
+  
+      // Fetch the latest data after the update
+      await fetchData();
+  
       console.log("Checkbox updated successfully");
     } catch (error: any) {
       console.error("Error updating checkbox:", error.message);
     }
-    fetchData();
   };
 
   // Fetch user data when the selected day or user ID changes
@@ -74,7 +89,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <div>
-      {Object.entries(userData?.todos || {}).map(([todoId, todo], index) => (
+      {Object.entries(localTodos).map(([todoId, todo], index) => (
         <Checkbox
           key={todoId}
           label={todo.label}

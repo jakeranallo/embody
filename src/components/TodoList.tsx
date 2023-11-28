@@ -10,8 +10,6 @@ import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 import { Tabs, rem } from "@mantine/core";
 import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
-import Calendar from "react-calendar";
-import "react-calendar/dist/Calendar.css";
 import { User } from "../types";
 import { signOut } from "firebase/auth";
 import { auth, database } from "../firebase";
@@ -150,101 +148,65 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
+  const handlePointsChange = (value: string) => {
+    const sanitizedValue = value.replace(/[^0-9-]/g, "");
+    setNewItemPoints(sanitizedValue);
+  };
+
   const addTodoItem = async () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
-
+  
     // Obtain a reference to the 'todos' node and push a new child
     const todosRef = ref(database, `users/${user.uid}/todos`);
     const newTodoRef = push(todosRef);
-
+  
     const newTodoItem: TodoItem = {
       id: newTodoRef.key || null,
       label: newItemLabel,
       points: parseInt(newItemPoints),
       checked: false,
     };
-
+  
     try {
       // Set the new todo item with the generated key
       await set(newTodoRef, newTodoItem);
-
-      // Update the local state (todoList and calendar)
+  
+      // Update the local state (todoList)
       setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
       setNewItemLabel("");
       setNewItemPoints("");
       setIsAddItemFormVisible(false);
-
-      // Update the calendar with the new todo item
-      const updatedCalendar = { ...calendar };
-      if (!updatedCalendar[currentDay]) {
-        updatedCalendar[currentDay] = { todos: [], score: 0 };
-      }
-      updatedCalendar[currentDay].todos.push(newTodoItem);
-
-      // Update the score
-      updatedCalendar[currentDay].score += newTodoItem.checked
-        ? newTodoItem.points
-        : 0;
-
-      setCalendar(updatedCalendar);
     } catch (error: any) {
       console.error("Error adding todo item to the database:", error.message);
     }
     fetchData();
   };
-
-  const handlePointsChange = (value: string) => {
-    const sanitizedValue = value.replace(/[^0-9-]/g, "");
-    setNewItemPoints(sanitizedValue);
-  };
-
+  
   const toggleTodoItem = async (id: string | null) => {
     if (!id) {
       // If id is null, do nothing
       return;
     }
-
+  
     setTodoList((prevTodoList) =>
       prevTodoList.map((item) =>
         item.id === id ? { ...item, checked: !item.checked } : item
       )
     );
-
-    // Update the calendar with the new checked status
-    const updatedCalendar = { ...calendar };
-    if (!updatedCalendar[currentDay]) {
-      updatedCalendar[currentDay] = { todos: [], score: 0 };
-    }
-    const updatedTodo = updatedCalendar[currentDay].todos.find(
-      (todo) => todo.id === id
-    );
-    if (updatedTodo) {
-      updatedTodo.checked = !updatedTodo.checked;
-      updatedCalendar[currentDay].score += updatedTodo.checked
-        ? updatedTodo.points
-        : -updatedTodo.points;
-    }
-
-    setCalendar(updatedCalendar);
-
+  
     try {
       // Update the checked status in the database
-      const databaseRef = ref(
-        database,
-        `users/${user.uid}/todos/${id}/checked`
-      );
-      await set(databaseRef, !updatedTodo?.checked);
+      const databaseRef = ref(database, `users/${user.uid}/todos/${id}/checked`);
+      await set(databaseRef, !todoList.find((todo) => todo.id === id)?.checked);
     } catch (error: any) {
-      console.error(
-        "Error updating checked status in the database:",
-        error.message
-      );
-
+      console.error("Error updating checked status in the database:", error.message);
+  
       // If there's an error with the database update, you may want to rollback
       // the local state changes or handle the error in some other way.
     }
     fetchData();
   };
+  
 
   const deleteTodoItem = async (id: string | null) => {
     console.log("Delete todo item called with id:", id);
@@ -258,25 +220,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     setTodoList((prevTodoList) =>
       prevTodoList.filter((item) => item.id !== id)
     );
-
-    // Update the calendar by removing the todo item
-    const updatedCalendar = { ...calendar };
-    if (!updatedCalendar[currentDay]) {
-      updatedCalendar[currentDay] = { todos: [], score: 0 };
-    }
-    const deletedTodo = updatedCalendar[currentDay].todos.find(
-      (todo) => todo.id === id
-    );
-    if (deletedTodo) {
-      updatedCalendar[currentDay].score -= deletedTodo.checked
-        ? deletedTodo.points
-        : 0;
-      updatedCalendar[currentDay].todos = updatedCalendar[
-        currentDay
-      ].todos.filter((todo) => todo.id !== id);
-    }
-
-    setCalendar(updatedCalendar);
 
     try {
       // Remove the item from the database
@@ -303,11 +246,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     }
   
     return Object.values(todos).reduce((acc, item) => (item.checked ? acc + (item.points || 0) : acc), 0);
-  };
-
-  const handleDayChange = (value: any) => {
-    const selectedDay = new Date(value).toLocaleDateString("en-US");
-    setCurrentDay(selectedDay);
   };
 
   const handlePointsGoalChange = (value: string) => {
@@ -419,24 +357,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
 
         <Tabs.Panel value="calendar">
           <Container>
-            <Calendar onChange={handleDayChange} value={new Date(currentDay)} />
-            <ul>
-              {calendar[currentDay]?.todos.map((item) => (
-                <li key={item.id}>
-                  <ScoreDisplay
-                    name="YourName"
-                    embodiment="Superhero"
-                    totalScore={calendar[currentDay]?.score || 0}
-                    pointsGoal={userData?.pointsGoal ?? 0}
-                  />
-                  <CustomCheckbox
-                    label={`${item.label} (${item.points} points)`}
-                    checked={item.checked}
-                    onChange={() => toggleTodoItem(item.id)}
-                  />
-                </li>
-              ))}
-            </ul>
           </Container>
         </Tabs.Panel>
 

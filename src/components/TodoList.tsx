@@ -27,6 +27,7 @@ interface TodoItem {
 interface DayData {
   todos: TodoItem[];
   score: number;
+  pointsGoal?: number;
 }
 
 const TodoList: React.FC<{ user: User }> = ({ user }) => {
@@ -123,6 +124,29 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
       }
     } catch (error: any) {
       console.error("Error updating user data:", error.message);
+    }
+  };
+
+  const saveHistoricData = async (
+    date: string,
+    pointsGoal: number,
+    todos: TodoItem[]
+  ) => {
+    try {
+      const historicEntryRef = ref(
+        database,
+        `users/${user.uid}/history/${date}`
+      );
+      const historicEntry: DayData = {
+        todos,
+        score: calculateScore(),
+        pointsGoal, // Include pointsGoal in the historic entry
+      };
+  
+      await set(historicEntryRef, historicEntry);
+      console.log(`Historic data for ${date} saved successfully.`);
+    } catch (error: any) {
+      console.error("Error saving historic data:", error.message);
     }
   };
 

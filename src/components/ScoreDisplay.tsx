@@ -52,8 +52,8 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
   const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
-    // Calculate progress as a percentage
-    const calculatedProgress = (totalScore / pointsGoal) * 100;
+    // Calculate progress as points out of the points goal
+    const calculatedProgress = Math.min(totalScore, pointsGoal);
     setProgress(calculatedProgress);
   }, [totalScore, pointsGoal]);
 
@@ -85,8 +85,8 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
       )}
       <div style={{ width: "100px", margin: "20px auto" }}>
         <CircularProgressbar
-          value={progress}
-          text={`${progress.toFixed(2)}%`}
+          value={(progress / pointsGoal) * 100}
+          text={`${totalScore} / ${pointsGoal}`}
         />
       </div>
     </div>

@@ -189,6 +189,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
     } catch (error: any) {
       console.error("Error adding todo:", error.message);
     }
+    fetchData();
   };
 
   // Fetch user data when the selected day or user ID changes

@@ -5,7 +5,7 @@ import {
 } from "firebase/auth";
 import { ref, set } from "firebase/database";
 import { auth, database } from "./firebase";
-import TodoList from "./components/TodoList";
+import TodoNew from "./components/TodoNew";
 import { User } from "./types";
 
 const App: React.FC = () => {
@@ -62,7 +62,7 @@ const App: React.FC = () => {
   return (
     <div>
       {user ? (
-        <TodoList user={user} />
+        <TodoNew user={user} />
       ) : (
         <>
           <h2>Sign Up</h2>

@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTrail, animated } from "react-spring";
-import {
-  Input,
-  Button,
-  Container,
-  Flex,
-} from "@mantine/core";
+import { Input, Button, Container, Flex } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 import CustomCheckbox from "./CustomCheckbox";
 import { Tabs, rem } from "@mantine/core";
@@ -35,7 +30,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
   const [newPointsGoal, setNewPointsGoal] = useState<number>(0);
   const [newName, setNewName] = useState<string>("");
 
-  const [calendar, setCalendar] = useState<Record<string, DayData>>({});
   const [currentDay, setCurrentDay] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
@@ -52,11 +46,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     from: { opacity: 0, transform: "translate3d(50px,0,0)" },
   });
 
-  useEffect(() => {
-    // Update the todo list when the selected day changes
-    setTodoList(calendar[currentDay]?.todos || []);
-  }, [calendar, currentDay]);
-
   const fetchData = async () => {
     try {
       const database = getDatabase();
@@ -66,22 +55,91 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
 
       if (userDataFromDatabase) {
         setUserData(userDataFromDatabase);
-        console.log(userDataFromDatabase);
+        console.log("User Data from Database:", userDataFromDatabase);
+        return userDataFromDatabase; // Return the fetched data
       }
     } catch (error: any) {
       console.error("Error fetching user data:", error.message);
     }
   };
 
+  const calculateScore = () => {
+    const todos = userData?.todos || {};
+
+    if (typeof todos !== "object" || todos === null) {
+      // Handle the case where todos is not an object
+      console.error("userData.todos is not an object:", todos);
+      return 0; // or handle it based on your specific use case
+    }
+
+    return Object.values(todos).reduce(
+      (acc, item) => (item.checked ? acc + (item.points || 0) : acc),
+      0
+    );
+  };
+
+  const saveHistoricData = async (
+    date: string,
+    pointsGoal: number,
+    todos: TodoItem[]
+  ) => {
+    try {
+      const historicEntryRef = ref(
+        database,
+        `users/${user.uid}/history/${date}`
+      );
+      const historicEntry: DayData = {
+        todos,
+        score: calculateScore(),
+        pointsGoal, // Include pointsGoal in the historic entry
+      };
+
+      await set(historicEntryRef, historicEntry);
+      console.log(`Historic data for ${date} saved successfully.`);
+    } catch (error: any) {
+      console.error("Error saving historic data:", error.message);
+    }
+  };
+
+  // Fetch user data when the selected day or user ID changes
   useEffect(() => {
-    // Fetch user data when the selected day or user ID changes
     fetchData();
-  }, [user.uid, currentDay]); // Updated dependencies
+  }, [currentDay, user.uid]); // Add any other dependencies that affect your fetch logic
+
+  // Reset todos for a new day
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentDate = new Date().toISOString().split("T")[0];
+      if (currentDate !== currentDay) {
+        resetDailyTodos();
+        setCurrentDay(currentDate);
+      }
+    }, 1000 * 60 * 60); // Check every hour
+
+    return () => clearInterval(interval);
+  }, [currentDay, user.uid]); // Updated dependencies
+
+  // Save historic data when todoList or pointsGoal changes
+  useEffect(() => {
+    const date = new Date().toISOString().split("T")[0];
+    saveHistoricData(date, userData?.pointsGoal || 0, todoList);
+  }, [currentDay, todoList, user.uid, userData?.pointsGoal]);
 
   if (!userData) {
     // If user data is not available, render a loading state or handle it as needed
     return <div>Loading...</div>;
   }
+
+  const resetDailyTodos = async () => {
+    try {
+      const todosRef = ref(database, `users/${user.uid}/todos`);
+      await set(todosRef, null);
+      setTodoList([]);
+      console.log("Todos reset for the day.");
+    } catch (error: any) {
+      console.error("Error resetting todos for the day:", error.message);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -125,29 +183,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  const saveHistoricData = async (
-    date: string,
-    pointsGoal: number,
-    todos: TodoItem[]
-  ) => {
-    try {
-      const historicEntryRef = ref(
-        database,
-        `users/${user.uid}/history/${date}`
-      );
-      const historicEntry: DayData = {
-        todos,
-        score: calculateScore(),
-        pointsGoal, // Include pointsGoal in the historic entry
-      };
-  
-      await set(historicEntryRef, historicEntry);
-      console.log(`Historic data for ${date} saved successfully.`);
-    } catch (error: any) {
-      console.error("Error saving historic data:", error.message);
-    }
-  };
-
   const handlePointsChange = (value: string) => {
     const sanitizedValue = value.replace(/[^0-9-]/g, "");
     setNewItemPoints(sanitizedValue);
@@ -155,56 +190,73 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
 
   const addTodoItem = async () => {
     if (newItemLabel.trim() === "" || isNaN(parseInt(newItemPoints))) return;
-  
+
     // Obtain a reference to the 'todos' node and push a new child
     const todosRef = ref(database, `users/${user.uid}/todos`);
     const newTodoRef = push(todosRef);
-  
+
     const newTodoItem: TodoItem = {
       id: newTodoRef.key || null,
       label: newItemLabel,
       points: parseInt(newItemPoints),
       checked: false,
     };
-  
+
     try {
       // Set the new todo item with the generated key
       await set(newTodoRef, newTodoItem);
-  
+
       // Update the local state (todoList)
       setTodoList((prevTodoList) => [...prevTodoList, newTodoItem]);
       setNewItemLabel("");
       setNewItemPoints("");
       setIsAddItemFormVisible(false);
+
+      // Update the historic entry for the day
+      // Update the historic entry for the day
+      const date = new Date().toISOString().split("T")[0];
+      await saveHistoricData(
+        date,
+        userData?.pointsGoal || 0,
+        todoList.concat(newTodoItem)
+      );
     } catch (error: any) {
       console.error("Error adding todo item to the database:", error.message);
     }
     fetchData();
   };
-  
+
   const toggleTodoItem = async (id: string | null) => {
     if (!id) {
       // If id is null, do nothing
       return;
     }
-  
-    setTodoList((prevTodoList) =>
-      prevTodoList.map((item) =>
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
-    );
-  
+
     try {
+      const updatedList = todoList.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      );
+
       // Update the checked status in the database
-      const databaseRef = ref(database, `users/${user.uid}/todos/${id}/checked`);
-      await set(databaseRef, !todoList.find((todo) => todo.id === id)?.checked);
+      const databaseRef = ref(
+        database,
+        `users/${user.uid}/todos/${id}/checked`
+      );
+      const newCheckedValue = !updatedList.find((todo) => todo.id === id)
+        ?.checked;
+      await set(databaseRef, newCheckedValue);
+
+      // Update the historic entry for the day
+      const date = new Date().toISOString().split("T")[0];
+      saveHistoricData(date, userData?.pointsGoal || 0, updatedList);
+
+      // Update the state and fetch data in sequence
+      setTodoList(updatedList);
+      await fetchData();
     } catch (error: any) {
-      console.error("Error updating checked status in the database:", error.message);
-  
-      // If there's an error with the database update, you may want to rollback
-      // the local state changes or handle the error in some other way.
+      console.error("Error updating todo item:", error.message);
+      // Handle error if necessary
     }
-    fetchData();
   };
   
 
@@ -224,6 +276,15 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
     try {
       // Remove the item from the database
       const databaseRef = ref(database, `users/${user.uid}/todos/${id}`);
+
+      // Update the historic entry for the day
+      const date = new Date().toISOString().split("T")[0];
+      await saveHistoricData(
+        date,
+        userData?.pointsGoal || 0,
+        todoList.filter((item) => item.id !== id)
+      );
+
       await set(databaseRef, null);
     } catch (error: any) {
       console.error(
@@ -234,18 +295,6 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
 
     // After deleting todo, refetch user data
     fetchData();
-  };
-
-  const calculateScore = () => {
-    const todos = userData?.todos || {};
-  
-    if (typeof todos !== 'object' || todos === null) {
-      // Handle the case where todos is not an object
-      console.error("userData.todos is not an object:", todos);
-      return 0; // or handle it based on your specific use case
-    }
-  
-    return Object.values(todos).reduce((acc, item) => (item.checked ? acc + (item.points || 0) : acc), 0);
   };
 
   const handlePointsGoalChange = (value: string) => {
@@ -356,8 +405,7 @@ const TodoList: React.FC<{ user: User }> = ({ user }) => {
         </Tabs.Panel>
 
         <Tabs.Panel value="calendar">
-          <Container>
-          </Container>
+          <Container></Container>
         </Tabs.Panel>
 
         <Tabs.Panel value="settings">

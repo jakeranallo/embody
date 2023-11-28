@@ -10,6 +10,8 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
     {}
   );
   const [historicData, setHistoricData] = useState<DayData[]>([]);
+  const [newTodoLabel, setNewTodoLabel] = useState<string>("");
+  const [newTodoPoints, setNewTodoPoints] = useState<number>(0);
 
   const calculateScore = (todos: { [todoId: string]: TodoItem }) => {
     if (typeof todos !== "object" || todos === null) {
@@ -58,7 +60,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
       );
 
       setHistoricData(formattedHistoricData);
-      console.log('fetched data:', historicData);
+      console.log("fetched data:", historicData);
     } catch (error: any) {
       console.error("Error fetching historic data:", error.message);
     }
@@ -110,12 +112,12 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
   const handleCheckboxChange = async (todoId: string | any) => {
     try {
       console.log("Start of handleCheckboxChange");
-  
+
       if (!userData) {
         console.error("User data is undefined");
         return;
       }
-  
+
       setLocalTodos((prevLocalTodos) => {
         const updatedLocalTodos = {
           ...prevLocalTodos,
@@ -126,15 +128,15 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
         };
         return updatedLocalTodos;
       }); // Update the local state using the updater function
-  
+
       const database = getDatabase();
       const userRef = ref(database, `users/${user.uid}`);
-  
+
       if (!userData.todos || !userData.todos[todoId]) {
         console.error("Todo data is undefined");
         return;
       }
-  
+
       const updatedTodos = {
         ...userData.todos,
         [todoId]: {
@@ -142,19 +144,50 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
           checked: !userData.todos[todoId]?.checked || false,
         },
       };
-  
+
       console.log("Before updating todos:", userData.todos);
-  
+
       await update(userRef, { todos: updatedTodos });
-  
+
       console.log("After updating todos:", updatedTodos);
-  
+
       // Fetch the latest data after the update
       await fetchData();
-  
+
       console.log("Checkbox updated successfully");
     } catch (error: any) {
       console.error("Error updating checkbox:", error.message);
+    }
+  };
+
+  const handleAddTodo = async () => {
+    try {
+      const todoId = push(ref(getDatabase(), `users/${user.uid}/todos`)).key;
+      const newTodo: TodoItem = {
+        id: todoId,
+        label: newTodoLabel,
+        points: newTodoPoints,
+        checked: false,
+      };
+
+      // Update local state
+      setLocalTodos((prevLocalTodos) => ({
+        ...prevLocalTodos,
+        [todoId as any]: newTodo,
+      }));
+
+      // Update Firebase
+      await update(ref(getDatabase(), `users/${user.uid}/todos`), {
+        [todoId as any]: newTodo,
+      });
+
+      // Clear the form
+      setNewTodoLabel("");
+      setNewTodoPoints(0);
+
+      console.log("Todo added successfully");
+    } catch (error: any) {
+      console.error("Error adding todo:", error.message);
     }
   };
 
@@ -185,6 +218,31 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
           onChange={() => handleCheckboxChange(todoId)}
         />
       ))}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          // Handle adding new todo here
+          handleAddTodo();
+        }}
+      >
+        <label>
+          Todo Label:
+          <input
+            type="text"
+            value={newTodoLabel}
+            onChange={(e) => setNewTodoLabel(e.target.value)}
+          />
+        </label>
+        <label>
+          Todo Points:
+          <input
+            type="number"
+            value={newTodoPoints}
+            onChange={(e) => setNewTodoPoints(Number(e.target.value))}
+          />
+        </label>
+        <button type="submit">Add Todo</button>
+      </form>
 
       {/* Display historic data */}
       <div>

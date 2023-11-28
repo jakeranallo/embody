@@ -4,7 +4,7 @@ export interface User {
   name?: string;
   embodyGoal?: string;
   pointsGoal?: number;
-  todos?: TodoItem[]; // Assuming you have a Todo type defined
+  todos?: TodoItem[];
 }
 
 export interface TodoItem {
@@ -12,4 +12,11 @@ export interface TodoItem {
   label: string;
   points: number;
   checked: boolean;
+}
+
+export interface DayData {
+  todos: TodoItem[];
+  score: number;
+  pointsGoal?: number;
+  date?: string;
 }

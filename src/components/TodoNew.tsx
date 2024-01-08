@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { User, TodoItem, DayData } from "../types";
 import { getDatabase, ref, get, set, push, update } from "firebase/database";
 import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
-import { Container, Tabs, Checkbox, Flex, rem } from "@mantine/core";
+import { Accordion, Container, Tabs, Checkbox, Flex, rem } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 
 const TodoNew: React.FC<{ user: User }> = ({ user }) => {
@@ -170,6 +170,25 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
     return <div>Loading...</div>;
   }
 
+  const historyItems = historicData.map(
+    ({ date, pointsGoal, score, todos }, index) => (
+      <Accordion.Item key={index} value={date ? date : ""}>
+        <Accordion.Control>{date}</Accordion.Control>
+        <Accordion.Panel>
+          <p>Points Goal: {pointsGoal}</p>
+          <p>Score: {score}</p>
+          <ul>
+            {Object.values(todos)
+              .filter((todo: TodoItem) => todo.checked)
+              .map((todo: TodoItem, todoIndex) => (
+                <li key={todoIndex}>{todo.label}</li>
+              ))}
+          </ul>
+        </Accordion.Panel>
+      </Accordion.Item>
+    )
+  );
+
   return (
     <Flex direction={"column"} align={"center"}>
       <ScoreDisplay
@@ -202,13 +221,14 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
         </Tabs.List>
 
         <Tabs.Panel value="todos">
-          <Container>
+          <Container p={24}>
             {Object.entries(localTodos).map(([todoId, todo], index) => (
               <Checkbox
                 key={todoId}
                 label={todo.label}
                 checked={todo.checked || false}
                 onChange={() => handleCheckboxChange(todoId)}
+                mb={16}
               />
             ))}
           </Container>
@@ -216,22 +236,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
 
         <Tabs.Panel value="history">
           <Container>
-            {/* Display historic data */}
-            <h2>Historic Data</h2>
-            {historicData.map(({ date, pointsGoal, score, todos }, index) => (
-              <div key={index}>
-                <p>Date: {date}</p>
-                <p>Points Goal: {pointsGoal}</p>
-                <p>Score: {score}</p>
-                <ul>
-                  {Object.values(todos)
-                    .filter((todo: TodoItem) => todo.checked)
-                    .map((todo: TodoItem, todoIndex) => (
-                      <li key={todoIndex}>{todo.label}</li>
-                    ))}
-                </ul>
-              </div>
-            ))}
+            <Accordion>{historyItems}</Accordion>
           </Container>
         </Tabs.Panel>
 

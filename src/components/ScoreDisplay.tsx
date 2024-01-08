@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CircularProgressbar } from "react-circular-progressbar";
+import { Container, Flex } from "@mantine/core";
 import "react-circular-progressbar/dist/styles.css";
 
 interface ScoreDisplayProps {
@@ -66,9 +67,9 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
   const textColor = isGoalReached ? "green" : totalScore < 0 ? "red" : "black";
 
   return (
-    <div>
+    <Container>
       {header && (
-        <div>
+        <Flex direction={"column"} align={"center"}>
           <h1>
             {greeting} {name}
           </h1>
@@ -81,7 +82,7 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
           <div>
             <strong>Points Goal:</strong> {pointsGoal} points
           </div>
-        </div>
+        </Flex>
       )}
       <div style={{ width: "100px", margin: "20px auto" }}>
         <CircularProgressbar
@@ -89,7 +90,7 @@ const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
           text={`${progress.toFixed(2)}%`}
         />
       </div>
-    </div>
+    </Container>
   );
 };
 

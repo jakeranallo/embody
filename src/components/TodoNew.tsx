@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { User, TodoItem, DayData } from "../types";
 import { getDatabase, ref, get, set, push, update } from "firebase/database";
-import { Checkbox } from "@mantine/core";
+import { IconSunset2, IconCalendar, IconSettings } from "@tabler/icons-react";
+import { Container, Tabs, Checkbox, Flex, rem } from "@mantine/core";
 import ScoreDisplay from "./ScoreDisplay";
 
 const TodoNew: React.FC<{ user: User }> = ({ user }) => {
@@ -10,6 +11,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
     {}
   );
   const [historicData, setHistoricData] = useState<DayData[]>([]);
+  const iconStyle = { width: rem(24), height: rem(24) };
 
   const calculateScore = (todos: { [todoId: string]: TodoItem }) => {
     if (typeof todos !== "object" || todos === null) {
@@ -58,7 +60,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
       );
 
       setHistoricData(formattedHistoricData);
-      console.log('fetched data:', historicData);
+      console.log("fetched data:", historicData);
     } catch (error: any) {
       console.error("Error fetching historic data:", error.message);
     }
@@ -110,12 +112,12 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
   const handleCheckboxChange = async (todoId: string | any) => {
     try {
       console.log("Start of handleCheckboxChange");
-  
+
       if (!userData) {
         console.error("User data is undefined");
         return;
       }
-  
+
       setLocalTodos((prevLocalTodos) => {
         const updatedLocalTodos = {
           ...prevLocalTodos,
@@ -126,15 +128,15 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
         };
         return updatedLocalTodos;
       }); // Update the local state using the updater function
-  
+
       const database = getDatabase();
       const userRef = ref(database, `users/${user.uid}`);
-  
+
       if (!userData.todos || !userData.todos[todoId]) {
         console.error("Todo data is undefined");
         return;
       }
-  
+
       const updatedTodos = {
         ...userData.todos,
         [todoId]: {
@@ -142,16 +144,16 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
           checked: !userData.todos[todoId]?.checked || false,
         },
       };
-  
+
       console.log("Before updating todos:", userData.todos);
-  
+
       await update(userRef, { todos: updatedTodos });
-  
+
       console.log("After updating todos:", updatedTodos);
-  
+
       // Fetch the latest data after the update
       await fetchData();
-  
+
       console.log("Checkbox updated successfully");
     } catch (error: any) {
       console.error("Error updating checkbox:", error.message);
@@ -169,7 +171,7 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
   }
 
   return (
-    <div>
+    <Flex direction={"column"} align={"center"}>
       <ScoreDisplay
         name={userData?.name ?? ""}
         embodiment={userData?.embodyGoal ?? ""}
@@ -177,34 +179,67 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
         pointsGoal={userData?.pointsGoal ?? 0}
         header
       />
-      {Object.entries(localTodos).map(([todoId, todo], index) => (
-        <Checkbox
-          key={todoId}
-          label={todo.label}
-          checked={todo.checked || false}
-          onChange={() => handleCheckboxChange(todoId)}
-        />
-      ))}
+      <Tabs defaultValue="todos">
+        <Tabs.List>
+          <Tabs.Tab
+            value="todos"
+            leftSection={<IconSunset2 style={iconStyle} />}
+          >
+            Todos
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="history"
+            leftSection={<IconCalendar style={iconStyle} />}
+          >
+            History
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="settings"
+            leftSection={<IconSettings style={iconStyle} />}
+          >
+            Settings
+          </Tabs.Tab>
+        </Tabs.List>
 
-      {/* Display historic data */}
-      <div>
-        <h2>Historic Data</h2>
-        {historicData.map(({ date, pointsGoal, score, todos }, index) => (
-          <div key={index}>
-            <p>Date: {date}</p>
-            <p>Points Goal: {pointsGoal}</p>
-            <p>Score: {score}</p>
-            <ul>
-              {Object.values(todos)
-                .filter((todo: TodoItem) => todo.checked)
-                .map((todo: TodoItem, todoIndex) => (
-                  <li key={todoIndex}>{todo.label}</li>
-                ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
+        <Tabs.Panel value="todos">
+          <Container>
+            {Object.entries(localTodos).map(([todoId, todo], index) => (
+              <Checkbox
+                key={todoId}
+                label={todo.label}
+                checked={todo.checked || false}
+                onChange={() => handleCheckboxChange(todoId)}
+              />
+            ))}
+          </Container>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="history">
+          <Container>
+            {/* Display historic data */}
+            <h2>Historic Data</h2>
+            {historicData.map(({ date, pointsGoal, score, todos }, index) => (
+              <div key={index}>
+                <p>Date: {date}</p>
+                <p>Points Goal: {pointsGoal}</p>
+                <p>Score: {score}</p>
+                <ul>
+                  {Object.values(todos)
+                    .filter((todo: TodoItem) => todo.checked)
+                    .map((todo: TodoItem, todoIndex) => (
+                      <li key={todoIndex}>{todo.label}</li>
+                    ))}
+                </ul>
+              </div>
+            ))}
+          </Container>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="settings">
+          <Container></Container>
+        </Tabs.Panel>
+      </Tabs>
+    </Flex>
   );
 };
 export default TodoNew;

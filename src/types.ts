@@ -5,6 +5,7 @@ export interface User {
   embodyGoal?: string;
   pointsGoal?: number;
   todos?: TodoItem[];
+  lastResetDate?: string
 }
 
 export interface TodoItem {

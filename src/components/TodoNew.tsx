@@ -12,6 +12,8 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
   );
   const [historicData, setHistoricData] = useState<DayData[]>([]);
   const iconStyle = { width: rem(24), height: rem(24) };
+  const [newTodoLabel, setNewTodoLabel] = useState<string>("");
+  const [newTodoPoints, setNewTodoPoints] = useState<number>(0);
 
   const calculateScore = (todos: { [todoId: string]: TodoItem }) => {
     if (typeof todos !== "object" || todos === null) {
@@ -158,6 +160,38 @@ const TodoNew: React.FC<{ user: User }> = ({ user }) => {
     } catch (error: any) {
       console.error("Error updating checkbox:", error.message);
     }
+  };
+
+  const handleAddTodo = async () => {
+    try {
+      const todoId = push(ref(getDatabase(), `users/${user.uid}/todos`)).key;
+      const newTodo: TodoItem = {
+        id: todoId,
+        label: newTodoLabel,
+        points: newTodoPoints,
+        checked: false,
+      };
+
+      // Update local state
+      setLocalTodos((prevLocalTodos) => ({
+        ...prevLocalTodos,
+        [todoId as any]: newTodo,
+      }));
+
+      // Update Firebase
+      await update(ref(getDatabase(), `users/${user.uid}/todos`), {
+        [todoId as any]: newTodo,
+      });
+
+      // Clear the form
+      setNewTodoLabel("");
+      setNewTodoPoints(0);
+
+      console.log("Todo added successfully");
+    } catch (error: any) {
+      console.error("Error adding todo:", error.message);
+    }
+    fetchData();
   };
 
   // Fetch user data when the selected day or user ID changes
